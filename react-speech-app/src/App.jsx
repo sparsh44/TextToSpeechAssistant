@@ -3,9 +3,11 @@ import React, { useState, useRef, useEffect } from 'react';
 function App() {
   const [text, setText] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState([]);
-  const [selectedVoice, setSelectedVoice] = useState(''); // Initialize to an empty string
+  const [selectedVoice, setSelectedVoice] = useState('');
   const [rate, setRate] = useState(1);
+  const [lastCharIndex, setLastCharIndex] = useState(0);
   const speechRef = useRef(null);
 
   useEffect(() => {
@@ -13,7 +15,7 @@ function App() {
       const availableVoices = window.speechSynthesis.getVoices();
       setVoices(availableVoices);
       if (availableVoices.length > 0) {
-        setSelectedVoice(availableVoices[0].name); // Default to the first voice if available
+        setSelectedVoice(availableVoices[0].name);
       }
     };
 
@@ -42,33 +44,45 @@ function App() {
       return;
     }
 
-    if (!isSpeaking) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voice = voices.find(v => v.name === selectedVoice);
-      if (voice) utterance.voice = voice;
-      utterance.rate = rate;
-
-      window.speechSynthesis.speak(utterance);
-      speechRef.current = utterance;
-
-      utterance.onend = () => {
-        setIsSpeaking(false);
-      };
-
-      setIsSpeaking(true);
+    if (isSpeaking) {
+      if (isPaused) {
+        window.speechSynthesis.resume();
+        setIsPaused(false);
+      } else {
+        window.speechSynthesis.pause();
+        setIsPaused(true);
+      }
     } else {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+      startSpeech(lastCharIndex);
     }
   };
 
+  const startSpeech = (startIndex) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
+    const voice = voices.find(v => v.name === selectedVoice);
+    if (voice) utterance.voice = voice;
+    utterance.rate = rate;
+    
+    utterance.onboundary = (event) => {
+      setLastCharIndex(startIndex + event.charIndex);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setLastCharIndex(0);
+    };
+
+    window.speechSynthesis.speak(utterance);
+    speechRef.current = utterance;
+    setIsSpeaking(true);
+    setIsPaused(false);
+  };
 
   return (
     <div style={containerStyle}>
       <h3>Text Speaking Assistant</h3>
-      <br/>
-      <br/>
-      
       <textarea
         value={text}
         onChange={handleTextChange}
@@ -78,7 +92,6 @@ function App() {
         style={textareaStyle}
       />
       <div style={controlContainerStyle}>
-        {/* Voice Selection */}
         <label style={labelStyle}>Voice: </label>
         <select value={selectedVoice} onChange={handleVoiceChange} style={selectStyle}>
           {voices.map((voice, index) => (
@@ -86,7 +99,6 @@ function App() {
           ))}
         </select>
 
-        {/* Rate Selection */}
         <label style={labelStyle}>Speed: </label>
         <input 
           type="range" 
@@ -101,7 +113,7 @@ function App() {
       </div>
 
       <button onClick={toggleSpeaking} style={buttonStyle}>
-        {isSpeaking ? 'Stop' : 'Start Speaking'}
+        {isSpeaking ? (isPaused ? 'Resume' : 'Pause') : 'Start Speaking'}
       </button>
     </div>
   );
@@ -113,7 +125,7 @@ const containerStyle = {
   justifyContent: 'center',
   alignItems: 'center',
   height: '100vh',
-  paddingLeft : "60vh"
+  paddingLeft: "60vh"
 };
 
 const textareaStyle = {
