@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import  { useState, useRef, useEffect } from "react";
 
 function App() {
   const [text, setText] = useState("");
@@ -36,7 +36,8 @@ function App() {
 
   const handleRateChange = (e) => {
     setRate(e.target.value);
-  };
+    }
+  ;
 
   const toggleSpeaking = () => {
     if (!text) {
@@ -63,7 +64,6 @@ function App() {
     const voice = voices.find((v) => v.name === selectedVoice);
     if (voice) utterance.voice = voice;
     utterance.rate = rate;
-
     utterance.onboundary = (event) => {
       setLastCharIndex(startIndex + event.charIndex);
     };
@@ -91,7 +91,7 @@ function App() {
         cols="50"
         style={textareaStyle}
       />
-      <div style={controlContainerStyle}>
+      <div style={controlContainerStyle} id="control-container">
         <div>
           <label style={labelStyle}>Voice: </label>
           <select
@@ -129,7 +129,7 @@ function App() {
 }
 
 const containerStyle = {
-  display: "flex",
+  display: 'flex',
   flexDirection: "column",
   justifyContent: "center",
   alignItems: "center",
@@ -148,7 +148,7 @@ const textareaStyle = {
 
 const controlContainerStyle = {
   marginBottom: "20px",
-  display: "block",
+  display: window.innerWidth <= 670 ? "block" : "flex",
   alignItems: "center",
   gap: "15px",
 };
