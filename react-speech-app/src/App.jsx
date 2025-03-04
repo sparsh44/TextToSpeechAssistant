@@ -135,7 +135,7 @@ const textareaStyle = {
   height: '30vh',
   resize : 'none',
   overflow: 'auto',
-  fontSize: '25px',
+  fontSize: '12px',
 };
 
 const controlContainerStyle = {
