@@ -131,8 +131,11 @@ const containerStyle = {
 const textareaStyle = {
   marginBottom: '20px',
   padding: '10px',
-  width: '400px',
-  height: '100px',
+  width: '30vw',
+  height: '30vh',
+  resize : 'none',
+  overflow: 'auto',
+  fontSize: '16px',
 };
 
 const controlContainerStyle = {
