@@ -1,4 +1,4 @@
-import  { useState, useRef, useEffect } from "react";
+import  { useState, useRef, useEffect, } from "react";
 
 function App() {
   const [text, setText] = useState("");
@@ -26,6 +26,19 @@ function App() {
     fetchVoices();
   }, []);
 
+  useEffect(() => {
+    window.speechSynthesis.cancel();
+    if(isSpeaking){
+      startSpeech(lastCharIndex+1);
+    }
+    if(isPaused){
+      startSpeech(lastCharIndex+1);
+      window.speechSynthesis.pause();
+    }
+   
+  },[rate])
+
+  
   const handleTextChange = (e) => {
     setText(e.target.value);
   };
@@ -35,7 +48,7 @@ function App() {
   };
 
   const handleRateChange = (e) => {
-    setRate(e.target.value);
+     setRate(e.target.value);
     }
   ;
 
@@ -58,15 +71,21 @@ function App() {
     }
   };
 
-  const startSpeech = (startIndex) => {
+  const startSpeech = (startIndex)=> {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
     const voice = voices.find((v) => v.name === selectedVoice);
     if (voice) utterance.voice = voice;
     utterance.rate = rate;
+    console.log(utterance.rate);
     utterance.onboundary = (event) => {
       setLastCharIndex(startIndex + event.charIndex);
     };
+
+    utterance.onpause = (event) => {
+      setLastCharIndex(event.charIndex)
+      setIsPaused(true);
+    }
 
     utterance.onend = () => {
       setIsSpeaking(false);
