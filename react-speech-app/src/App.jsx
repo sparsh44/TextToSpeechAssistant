@@ -91,7 +91,7 @@ function App() {
   return (
     <div className={`app ${isDarkMode ? "dark-mode" : "light-mode"}`}>
       <button className="toggle-button" onClick={toggleDarkMode}>
-        {isDarkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}
+        {isDarkMode ? "🌙" : "☀️"}
       </button>
 
       <h3 className="page-title">Text Speaking Assistant</h3>
