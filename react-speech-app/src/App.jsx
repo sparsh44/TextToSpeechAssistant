@@ -1,4 +1,4 @@
-// //best
+
 import { useState, useRef, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./app2.css";
@@ -43,8 +43,18 @@ function App() {
   };
 
   const handleTextChange = (e) => setText(e.target.value);
-  const handleVoiceChange = (e) => setSelectedVoice(e.target.value);
-  const handleRateChange = (e) => setRate(parseFloat(e.target.value));
+  const handleVoiceChange = (e) => {
+    setSelectedVoice(e.target.value);
+    if (isSpeaking) restartSpeech(lastCharIndex);
+  };
+  
+  const handleRateChange = (e) => {
+    const newRate = parseFloat(e.target.value);
+    setRate(newRate);
+    if (isSpeaking) {
+      restartSpeech(lastCharIndex, newRate);
+    }
+  };
 
   const toggleSpeaking = () => {
     if (!text) {
@@ -61,20 +71,25 @@ function App() {
         setIsPaused(true);
       }
     } else {
-      startSpeech(lastCharIndex);
+      startSpeech(lastCharIndex, rate);
     }
   };
 
-  const startSpeech = (startIndex) => {
+  const startSpeech = (startIndex, speechRate) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
     const voice = voices.find((v) => v.name === selectedVoice);
     if (voice) utterance.voice = voice;
-    utterance.rate = rate;
+    utterance.rate = speechRate;
 
     utterance.onboundary = (event) => {
       setLastCharIndex(startIndex + event.charIndex);
     };
+    
+    utterance.onpause = (event) => {
+      setLastCharIndex(event.charIndex)
+      setIsPaused(true);
+    }
 
     utterance.onend = () => {
       setIsSpeaking(false);
@@ -86,6 +101,13 @@ function App() {
     setIsSpeaking(true);
     setIsPaused(false);
     window.speechSynthesis.speak(utterance);
+  };
+
+  const restartSpeech = (startIndex, speechRate = rate) => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      startSpeech(startIndex, speechRate);
+    }
   };
 
   return (
@@ -132,168 +154,7 @@ function App() {
 }
 
 export default App;
-// // import { useState, useRef, useEffect } from "react";
-// // import "./app2.css";
 
-// // function App() {
-// //   const [text, setText] = useState("");
-// //   const [isSpeaking, setIsSpeaking] = useState(false);
-// //   const [isPaused, setIsPaused] = useState(false);
-// //   const [voices, setVoices] = useState([]);
-// //   const [selectedVoice, setSelectedVoice] = useState("");
-// //   const [rate, setRate] = useState(1);
-// //   const [lastCharIndex, setLastCharIndex] = useState(0);
-// //   //const [darkMode, setDarkMode] = useState(true); // Default Dark Mode
-// //   const [isDarkMode, setIsDarkMode] = useState(() => {
-// //     return localStorage.getItem("darkMode") === "true"; // Load from localStorage
-// //   });
-// //   const speechRef = useRef(null);
-
-// //   useEffect(() => {
-// //     const fetchVoices = () => {
-// //       const availableVoices = window.speechSynthesis.getVoices();
-// //       setVoices(availableVoices);
-// //       if (availableVoices.length > 0) {
-// //         setSelectedVoice(availableVoices[0].name);
-// //       }
-// //     };
-
-// //     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-// //       window.speechSynthesis.onvoiceschanged = fetchVoices;
-// //     }
-// //     fetchVoices();
-// //   }, []);
-
-// //   useEffect(() => {
-// //     window.speechSynthesis.cancel();
-// //     if (isSpeaking) {
-// //       startSpeech(lastCharIndex + 1);
-// //     }
-// //     if (isPaused) {
-// //       startSpeech(lastCharIndex + 1);
-// //       window.speechSynthesis.pause();
-// //     }
-// //   }, [rate]);
-
-// //   // useEffect(() => {
-// //   //   document.body.className = darkMode ? "dark-mode" : "light-mode";
-// //   // }, [darkMode]);
-// //   useEffect(() => {
-// //     document.body.className = isDarkMode ? "dark-mode" : "light-mode"; // Apply mode to body
-// //   }, [isDarkMode]);
-
-// //   // const toggleDarkMode = () => {
-// //   //   setDarkMode((prevMode) => !prevMode);
-// //   // };
-// //   const toggleDarkMode = () => {
-// //     const newMode = !isDarkMode;
-// //     setIsDarkMode(newMode);
-// //     localStorage.setItem("darkMode", newMode); // Save to localStorage
-// //   };
-
-// //   const handleTextChange = (e) => setText(e.target.value);
-// //   const handleVoiceChange = (e) => setSelectedVoice(e.target.value);
-// //   const handleRateChange = (e) => setRate(e.target.value);
-
-// //   const toggleSpeaking = () => {
-// //     if (!text) {
-// //       alert("Please enter text to speak.");
-// //       return;
-// //     }
-
-// //     if (isSpeaking) {
-// //       if (isPaused) {
-// //         window.speechSynthesis.resume();
-// //         setIsPaused(false);
-// //       } else {
-// //         window.speechSynthesis.pause();
-// //         setIsPaused(true);
-// //       }
-// //     } else {
-// //       startSpeech(lastCharIndex);
-// //     }
-// //   };
-
-// //   const startSpeech = (startIndex) => {
-// //     window.speechSynthesis.cancel();
-// //     const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
-// //     const voice = voices.find((v) => v.name === selectedVoice);
-// //     if (voice) utterance.voice = voice;
-// //     utterance.rate = rate;
-
-// //     utterance.onboundary = (event) => {
-// //       setLastCharIndex(startIndex + event.charIndex);
-// //     };
-
-// //     utterance.onpause = (event) => {
-// //       setLastCharIndex(event.charIndex);
-// //       setIsPaused(true);
-// //     };
-
-// //     utterance.onend = () => {
-// //       setIsSpeaking(false);
-// //       setIsPaused(false);
-// //       setLastCharIndex(0);
-// //     };
-
-// //     window.speechSynthesis.speak(utterance);
-// //     speechRef.current = utterance;
-// //     setIsSpeaking(true);
-// //     setIsPaused(false);
-// //   };
-
-// //   return (
-// //     <div className={`app ${isDarkMode ? "dark-mode" : "light-mode"}`}>
-// //     {/* Toggle Button on Top Right */}
-// //     <button className="toggle-button" onClick={toggleDarkMode}>
-// //       {isDarkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}
-// //     </button>
-// //       {/* Dark Mode Toggle Button - Positioned Outside the Container
-// //       <button className="toggle-button" onClick={toggleDarkMode}>
-// //         {darkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}
-// //       </button> */}
-      
-// //       <h3 className="page-title">Text Speaking Assistant</h3>
-
-// //       <div className="container">
-// //         {/* //<h3>Text Speaking Assistant</h3> */}
-// //         <textarea
-// //           value={text}
-// //           onChange={handleTextChange}
-// //           placeholder="Enter text here"
-// //           rows="4"
-// //           cols="50"
-// //         />
-
-// //         <div className="control-container">
-// //           <div>
-// //             <label>Voice:</label>
-// //             <select value={selectedVoice} onChange={handleVoiceChange}>
-// //               {voices.map((voice, index) => (
-// //                 <option key={index} value={voice.name}>
-// //                   {voice.name} ({voice.lang})
-// //                 </option>
-// //               ))}
-// //             </select>
-// //           </div>
-
-// //           <div className="speed-control">
-// //             <label>Speed: </label>
-// //             <input type="range" min="0.5" max="2" step="0.1" value={rate} onChange={handleRateChange} />
-// //             <div className="speed-indicator">{rate}x</div>
-// //           </div>
-// //         </div>
-
-// //         <button onClick={toggleSpeaking} className="speak-button">
-// //           <i className={isSpeaking ? (isPaused ? "fas fa-play" : "fas fa-pause") : "fas fa-play"}></i>
-// //           {isSpeaking ? (isPaused ? "Resume" : "Pause") : "Start Speaking"}
-// //         </button>
-// //       </div>
-// //     </div>
-// //   );
-// // }
-
-// // export default App;
 
 // // import { useState, useRef, useEffect } from "react";
 // // import "./app2.css";
@@ -567,144 +428,5 @@ export default App;
 
 // // export default App;
 
-// import { useState, useRef, useEffect } from "react";
-// import "./apptest.css";
-
-// function App() {
-//   const [text, setText] = useState("");
-//   const [isSpeaking, setIsSpeaking] = useState(false);
-//   const [isPaused, setIsPaused] = useState(false);
-//   const [voices, setVoices] = useState([]);
-//   const [selectedVoice, setSelectedVoice] = useState("");
-//   const [rate, setRate] = useState(1);
-//   const [lastCharIndex, setLastCharIndex] = useState(0);
-//   const [isDarkMode, setIsDarkMode] = useState(() => {
-//     return localStorage.getItem("darkMode") === "true";
-//   });
-
-//   const speechRef = useRef(null);
-
-//   useEffect(() => {
-//     const fetchVoices = () => {
-//       const availableVoices = window.speechSynthesis.getVoices();
-//       setVoices(availableVoices);
-//       if (availableVoices.length > 0) {
-//         setSelectedVoice(availableVoices[0].name);
-//       }
-//     };
-
-//     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-//       window.speechSynthesis.onvoiceschanged = fetchVoices;
-//     }
-//     fetchVoices();
-//   }, []);
-
-//   useEffect(() => {
-//     document.body.className = isDarkMode ? "dark-mode" : "light-mode";
-//   }, [isDarkMode]);
-
-//   const toggleDarkMode = () => {
-//     const newMode = !isDarkMode;
-//     setIsDarkMode(newMode);
-//     localStorage.setItem("darkMode", newMode);
-//   };
-
-//   const handleTextChange = (e) => setText(e.target.value);
-//   const handleVoiceChange = (e) => setSelectedVoice(e.target.value);
-//   const handleRateChange = (e) => setRate(e.target.value);
-
-//   const toggleSpeaking = () => {
-//     if (!text) {
-//       alert("Please enter text to speak.");
-//       return;
-//     }
-
-//     if (isSpeaking) {
-//       if (isPaused) {
-//         window.speechSynthesis.resume();
-//         setIsPaused(false);
-//       } else {
-//         window.speechSynthesis.pause();
-//         setIsPaused(true);
-//       }
-//     } else {
-//       startSpeech(lastCharIndex);
-//     }
-//   };
-
-//   const startSpeech = (startIndex) => {
-//     window.speechSynthesis.cancel();
-//     const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
-//     const voice = voices.find((v) => v.name === selectedVoice);
-//     if (voice) utterance.voice = voice;
-//     utterance.rate = rate;
-
-//     utterance.onboundary = (event) => {
-//       setLastCharIndex(startIndex + event.charIndex);
-//     };
-
-//     utterance.onpause = (event) => {
-//       setLastCharIndex(event.charIndex);
-//       setIsPaused(true);
-//     };
-
-//     utterance.onend = () => {
-//       setIsSpeaking(false);
-//       setIsPaused(false);
-//       setLastCharIndex(0);
-//     };
-
-//     window.speechSynthesis.speak(utterance);
-//     speechRef.current = utterance;
-//     setIsSpeaking(true);
-//     setIsPaused(false);
-//   };
-
-//   return (
-//     <div className={`app ${isDarkMode ? "dark-mode" : "light-mode"}`}>
-//       <button className="toggle-button" onClick={toggleDarkMode}>
-//         {isDarkMode ? "🌙 Dark Mode" : "☀️ Light Mode"}
-//       </button>
-
-//       <h3 className="page-title">Text Speaking Assistant</h3>
-
-//       <div className="container">
-//         <textarea
-//           value={text}
-//           onChange={handleTextChange}
-//           placeholder="Enter text here"
-//           rows="4"
-//           cols="50"
-//         />
-
-//         <div className="control-container">
-//           <div className="voice-select">
-//             <label>Voice:</label>
-//             <select value={selectedVoice} onChange={handleVoiceChange}>
-//               {voices.map((voice, index) => (
-//                 <option key={index} value={voice.name}>
-//                   {voice.name} ({voice.lang})
-//                 </option>
-//               ))}
-//             </select>
-//           </div>
-
-//           <div className="speed-control">
-//             <label>Speed:</label>
-//             <input type="range" min="0.5" max="2" step="0.1" value={rate} onChange={handleRateChange} />
-//             <div className="speed-indicator">{rate}x</div>
-//           </div>
-//         </div>
-
-//         <button onClick={toggleSpeaking} className="speak-button">
-//           <i className={isSpeaking ? (isPaused ? "fas fa-play" : "fas fa-pause") : "fas fa-play"}></i>
-//           {isSpeaking ? (isPaused ? "Resume" : "Pause") : "Start Speaking"}
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default App;
 
 
