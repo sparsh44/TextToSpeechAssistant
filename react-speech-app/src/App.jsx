@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./app2.css";
@@ -36,6 +35,56 @@ function App() {
     document.body.className = isDarkMode ? "dark-mode" : "light-mode";
   }, [isDarkMode]);
 
+  // Get the word of a string given the string and index
+  const getWordAt = (str, pos) => {
+    str = String(str);
+    pos = Number(pos) >>> 0;
+
+    let left = str.slice(0, pos + 1).search(/\S+$/),
+      right = str.slice(pos).search(/\s/);
+
+    if (right < 0) {
+      return str.slice(left);
+    }
+    return str.slice(left, right + pos);
+  };
+
+  // Get the position of the beginning of the word
+  const getWordStart = (str, pos) => {
+    str = String(str);
+    pos = Number(pos) >>> 0;
+    let start = str.slice(0, pos + 1).search(/\S+$/);
+    return start;
+  };
+
+  const wordHighlightAndAutoScroll = (event,text) => {
+    let textarea = document.getElementById("textarea");
+    let value = text;
+    let index = event.charIndex;
+    console.log(index);
+    let word = getWordAt(value, index);
+    console.log(word);
+    let anchorPosition = (textarea.value.length-value.length) + getWordStart(value, index);
+    let activePosition = anchorPosition + word.length;
+
+    textarea.focus();
+
+    const fullText = textarea.value;
+    textarea.value = fullText.substring(0, activePosition);
+    textarea.scrollTop = textarea.scrollHeight;
+    textarea.value = fullText;
+
+    if (textarea.setSelectionRange) {
+      textarea.setSelectionRange(anchorPosition, activePosition);
+    } else {
+      let range = textarea.createTextRange();
+      range.collapse(true);
+      range.moveEnd("character", activePosition);
+      range.moveStart("character", anchorPosition);
+      range.select();
+    }
+  };
+
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
@@ -47,8 +96,8 @@ function App() {
     setSelectedVoice(e.target.value);
     if (isSpeaking) restartSpeech(lastCharIndex);
   };
-  
-  const handleRateChange = (e) => {
+
+  const handleRateChange = async (e) => {
     const newRate = parseFloat(e.target.value);
     setRate(newRate);
     if (isSpeaking) {
@@ -82,14 +131,15 @@ function App() {
     if (voice) utterance.voice = voice;
     utterance.rate = speechRate;
 
-    utterance.onboundary = (event) => {
-      setLastCharIndex(startIndex + event.charIndex);
+    utterance.onboundary = async (event) => {
+      await setLastCharIndex(startIndex + event.charIndex);
+      await wordHighlightAndAutoScroll(event,utterance.text);
     };
-    
+
     utterance.onpause = (event) => {
-      setLastCharIndex(event.charIndex)
+      setLastCharIndex(event.charIndex);
       setIsPaused(true);
-    }
+    };
 
     utterance.onend = () => {
       setIsSpeaking(false);
@@ -120,6 +170,7 @@ function App() {
 
       <div className="container">
         <textarea
+          id="textarea"
           value={text}
           onChange={handleTextChange}
           placeholder="Enter text here"
@@ -129,7 +180,11 @@ function App() {
         <div className="control-container d-flex justify-content-around align-items-center mt-3">
           <div className="voice-select">
             <label>Voice:</label>
-            <select value={selectedVoice} onChange={handleVoiceChange} className="form-select">
+            <select
+              value={selectedVoice}
+              onChange={handleVoiceChange}
+              className="form-select"
+            >
               {voices.map((voice, index) => (
                 <option key={index} value={voice.name}>
                   {voice.name} ({voice.lang})
@@ -140,12 +195,23 @@ function App() {
 
           <div className="speed-control">
             <label>Speed:</label>
-            <input type="range" min="0.5" max="2" step="0.1" value={rate} onChange={handleRateChange} className="form-range"/>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.1"
+              value={rate}
+              onChange={handleRateChange}
+              className="form-range"
+            />
             <div className="speed-indicator">{rate}x</div>
           </div>
         </div>
 
-        <button onClick={toggleSpeaking} className="speak-button btn btn-primary">
+        <button
+          onClick={toggleSpeaking}
+          className="speak-button btn btn-primary"
+        >
           {isSpeaking ? (isPaused ? "Resume" : "Pause") : "Start Speaking"}
         </button>
       </div>
@@ -154,7 +220,6 @@ function App() {
 }
 
 export default App;
-
 
 // // import { useState, useRef, useEffect } from "react";
 // // import "./app2.css";
@@ -180,7 +245,7 @@ export default App;
 // //     };
 
 // //   //   window.speechSynthesis.addEventListener("voiceschanged", fetchVoices);
-// //   //   fetchVoices(); 
+// //   //   fetchVoices();
 
 // //   //   return () => {
 // //   //     window.speechSynthesis.removeEventListener("voiceschanged", fetchVoices);
@@ -207,10 +272,9 @@ export default App;
 // //       startSpeech(lastCharIndex+1);
 // //       window.speechSynthesis.pause();
 // //     }
-   
+
 // //   },[rate])
 
-  
 // //   const handleTextChange = (e) => {
 // //     setText(e.target.value);
 // //   };
@@ -427,6 +491,3 @@ export default App;
 // // };
 
 // // export default App;
-
-
-
