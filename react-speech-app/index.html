@@ -1,12 +1,42 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="manifest" href="/manifest.json" />
+    
+  <!-- meta tags -->
+    <title>Speaking Assistant - AI Voice Generator</title>
+    <meta name="description" content="Convert text into realistic AI-generated speech with Speaking Assistant. Try our advanced Text-to-Speech technology now!" />
+    <meta name="keywords" content="text to speech, AI voice, speaking assistant, TTS, voice generator, AI assistant, speech synthesis, multiple voices, realtime speed control, word highlighting" />
+    <meta name="robots" content="index, follow" />
+  
+    <link rel="icon" type="image/png" href="./public/icons/icon-144x144.png" />
     <meta name="theme-color" content="#ffffff" />
-    <title>Speaking Assistant</title>
+    <link rel="preload" as="script" href="/src/main.jsx" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+    
+   <!-- open graphs -->
+    <meta property="og:title" content="Speaking Assistant - AI Voice Generator" />
+    <meta property="og:description" content="Convert text into realistic AI-generated speech with Speaking Assistant." />
+    <meta property="og:type" content="website" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Speaking Assistant - AI Voice Generator" />
+    <meta name="twitter:description" content="Convert text into realistic AI-generated speech with Speaking Assistant." />
+ 
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Structured Data (Schema.org) for Better SEO -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Speaking Assistant",
+        "description": "Convert text into realistic AI-generated speech with our advanced text-to-speech technology. Features include speech synthesis, multiple voices, real-time speed control, and word highlighting."
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
