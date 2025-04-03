@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './index.css';
 
-// Add Font Awesome for icons
 const loadFontAwesome = () => {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -12,7 +11,6 @@ const loadFontAwesome = () => {
   document.head.appendChild(link);
 };
 
-// Add Google Fonts for Poppins
 const loadGoogleFonts = () => {
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -20,7 +18,6 @@ const loadGoogleFonts = () => {
   document.head.appendChild(link);
 };
 
-// Load external resources
 loadFontAwesome();
 loadGoogleFonts();
 
