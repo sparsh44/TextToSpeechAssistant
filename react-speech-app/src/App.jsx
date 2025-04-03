@@ -1,223 +1,167 @@
-import { useState, useRef, useEffect } from "react";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "./app2.css";
+import React, { useState, useEffect } from 'react';
+import './App.css';
 
 function App() {
-  const [text, setText] = useState("");
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  // State management
+  const [text, setText] = useState('');
+  const [voice, setVoice] = useState('');
   const [voices, setVoices] = useState([]);
-  const [selectedVoice, setSelectedVoice] = useState("");
   const [rate, setRate] = useState(1);
-  const [lastCharIndex, setLastCharIndex] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem("darkMode") === "true";
-  });
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentWordIndex, setCurrentWordIndex] = useState(null);
+  const synth = window.speechSynthesis;
 
-  const speechRef = useRef(null);
-
+  // Load available voices when component mounts
   useEffect(() => {
-    const fetchVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
+    const loadVoices = () => {
+      const availableVoices = synth.getVoices();
       setVoices(availableVoices);
+      
+      // Set default voice (prefer Microsoft David if available)
       if (availableVoices.length > 0) {
-        setSelectedVoice(availableVoices[0].name);
+        const defaultVoice = availableVoices.find(v => 
+          v.name.includes('David') || 
+          (v.lang.includes('en') && v.default)
+        ) || availableVoices[0];
+        
+        setVoice(defaultVoice.name);
       }
     };
 
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = fetchVoices;
+    // Handle voices loading which can be asynchronous
+    if (synth.getVoices().length > 0) {
+      loadVoices();
     }
-    fetchVoices();
+    
+    synth.onvoiceschanged = loadVoices;
+
+    // Clean up on unmount
+    return () => {
+      synth.onvoiceschanged = null;
+      if (synth.speaking) synth.cancel();
+    };
   }, []);
 
-  useEffect(() => {
-    document.body.className = isDarkMode ? "dark-mode" : "light-mode";
-  }, [isDarkMode]);
-
-  // Get the word of a string given the string and index
-  const getWordAt = (str, pos) => {
-    str = String(str);
-    pos = Number(pos) >>> 0;
-
-    let left = str.slice(0, pos + 1).search(/\S+$/),
-      right = str.slice(pos).search(/\s/);
-
-    if (right < 0) {
-      return str.slice(left);
-    }
-    return str.slice(left, right + pos);
-  };
-
-  // Get the position of the beginning of the word
-  const getWordStart = (str, pos) => {
-    str = String(str);
-    pos = Number(pos) >>> 0;
-    let start = str.slice(0, pos + 1).search(/\S+$/);
-    return start;
-  };
-
-  const wordHighlightAndAutoScroll = (event,text) => {
-    let textarea = document.getElementById("textarea");
-    let value = text;
-    let index = event.charIndex;
-    console.log(index);
-    let word = getWordAt(value, index);
-    console.log(word);
-    let anchorPosition = (textarea.value.length-value.length) + getWordStart(value, index);
-    let activePosition = anchorPosition + word.length;
-
-    textarea.focus();
-
-    const fullText = textarea.value;
-    textarea.value = fullText.substring(0, activePosition+250);
-    textarea.scrollTop = textarea.scrollHeight;
-    textarea.value = fullText;
-
-    if (textarea.setSelectionRange) {
-      textarea.setSelectionRange(anchorPosition, activePosition);
-    } else {
-      let range = textarea.createTextRange();
-      range.collapse(true);
-      range.moveEnd("character", activePosition);
-      range.moveStart("character", anchorPosition);
-      range.select();
-    }
-  };
-
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    localStorage.setItem("darkMode", newMode);
-  };
-
-  const handleTextChange = (e) => setText(e.target.value);
-  const handleVoiceChange = (e) => {
-    setSelectedVoice(e.target.value);
-    if (isSpeaking) restartSpeech(lastCharIndex);
-  };
-
-  const handleRateChange = async (e) => {
-    const newRate = parseFloat(e.target.value);
-    setRate(newRate);
-    if (isSpeaking) {
-      restartSpeech(lastCharIndex, newRate);
-    }
-  };
-
-  const toggleSpeaking = () => {
-    if (!text) {
-      alert("Please enter text to speak.");
+  // Handle text-to-speech with word highlighting
+  const handleSpeak = () => {
+    if (text.trim() === '') return;
+    
+    // Cancel any ongoing speech
+    if (synth.speaking) {
+      synth.cancel();
+      setIsPlaying(false);
+      setCurrentWordIndex(null);
       return;
     }
 
-    if (isSpeaking) {
-      if (isPaused) {
-        window.speechSynthesis.resume();
-        setIsPaused(false);
-      } else {
-        window.speechSynthesis.pause();
-        setIsPaused(true);
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Set selected voice
+    const selectedVoice = voices.find(v => v.name === voice);
+    if (selectedVoice) utterance.voice = selectedVoice;
+    
+    // Set speech rate
+    utterance.rate = rate;
+    
+    // Word boundary detection for highlighting
+    const words = text.split(/\s+/);
+    let wordIndex = 0;
+    
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        setCurrentWordIndex(wordIndex);
+        wordIndex = Math.min(wordIndex + 1, words.length - 1);
       }
-    } else {
-      startSpeech(lastCharIndex, rate);
-    }
-  };
-
-  const startSpeech = (startIndex, speechRate) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
-    const voice = voices.find((v) => v.name === selectedVoice);
-    if (voice) utterance.voice = voice;
-    utterance.rate = speechRate;
-
-    utterance.onboundary = async (event) => {
-      await setLastCharIndex(startIndex + event.charIndex);
-      await wordHighlightAndAutoScroll(event,utterance.text);
     };
-
-    utterance.onpause = (event) => {
-      setLastCharIndex(event.charIndex);
-      setIsPaused(true);
-    };
-
+    
     utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setLastCharIndex(0);
+      setIsPlaying(false);
+      setCurrentWordIndex(null);
     };
-
-    speechRef.current = utterance;
-    setIsSpeaking(true);
-    setIsPaused(false);
-    window.speechSynthesis.speak(utterance);
+    
+    // Start speaking
+    setIsPlaying(true);
+    setCurrentWordIndex(0);
+    synth.speak(utterance);
   };
 
-  const restartSpeech = (startIndex, speechRate = rate) => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      startSpeech(startIndex, speechRate);
+  // Render text with current word highlighting
+  const renderText = () => {
+    if (currentWordIndex === null || !isPlaying) {
+      return text;
     }
+    
+    const words = text.split(/\s+/);
+    return (
+      <div>
+        {words.map((word, index) => (
+          <span 
+            key={index} 
+            style={{ 
+              backgroundColor: index === currentWordIndex ? 'rgba(0, 157, 255, 0.3)' : 'transparent',
+              padding: '0 2px',
+              borderRadius: '3px',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            {word}{' '}
+          </span>
+        ))}
+      </div>
+    );
   };
 
   return (
-    <div className={`app ${isDarkMode ? "dark-mode" : "light-mode"}`}>
-      <button className="toggle-button" onClick={toggleDarkMode}>
-        {isDarkMode ? "🌙" : "☀️"}
-      </button>
-
-      <h3 className="page-title">Text Speaking Assistant</h3>
-
-      <div className="container">
+    <div className="container">
+      <h3>Text Speaking Assistant</h3>
+      
+      <div className="text-container">
         <textarea
-          id="textarea"
           value={text}
-          onChange={handleTextChange}
-          placeholder="Enter text here"
-          rows="4"
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Enter text here..."
         />
-
-        <div className="control-container d-flex justify-content-around align-items-center mt-3">
-          <div className="voice-select">
-            <label>Voice:</label>
-            <select
-              value={selectedVoice}
-              onChange={handleVoiceChange}
-              className="form-select"
-            >
-              {voices.map((voice, index) => (
-                <option key={index} value={voice.name}>
-                  {voice.name} ({voice.lang})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="speed-control">
-            <label>Speed:</label>
-            <input
-              type="range"
-              min="0.5"
-              max="2"
-              step="0.1"
-              value={rate}
-              onChange={handleRateChange}
-              className="form-range"
-            />
-            <div className="speed-indicator">{rate}x</div>
-          </div>
-        </div>
-
-        <button
-          onClick={toggleSpeaking}
-          className="speak-button btn btn-primary"
-        >
-          {isSpeaking ? (isPaused ? "Resume" : "Pause") : "Start Speaking"}
-        </button>
+        <div className="char-count">{text.length} characters</div>
       </div>
+      
+      <div className="control-container">
+        <div className="voice-control">
+          <div className="control-label">
+            <span>Voice:</span>
+          </div>
+          <select value={voice} onChange={(e) => setVoice(e.target.value)}>
+            {voices.map((v) => (
+              <option key={v.name} value={v.name}>
+                {v.name} ({v.lang})
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="speed-control">
+          <div className="control-label">
+            <span>Speed:</span>
+            <span>{rate.toFixed(1)}x</span>
+          </div>
+          <input
+            type="range"
+            min="0.5"
+            max="2"
+            step="0.1"
+            value={rate}
+            onChange={(e) => setRate(parseFloat(e.target.value))}
+          />
+        </div>
+      </div>
+      
+      <button 
+        onClick={handleSpeak} 
+        className={isPlaying ? 'speaking-btn' : ''}
+      >
+        {isPlaying ? 'Stop Speaking' : 'Start Speaking'}
+      </button>
     </div>
   );
 }
 
 export default App;
-
