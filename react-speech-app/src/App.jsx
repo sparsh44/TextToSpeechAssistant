@@ -1,223 +1,164 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./app2.css";
+// import "./app2.css";
+import './App.css';
 
 function App() {
-  const [text, setText] = useState("");
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [text, setText] = useState('');
+  const [voice, setVoice] = useState('');
   const [voices, setVoices] = useState([]);
-  const [selectedVoice, setSelectedVoice] = useState("");
   const [rate, setRate] = useState(1);
-  const [lastCharIndex, setLastCharIndex] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem("darkMode") === "true";
-  });
-
-  const speechRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [highlightedText, setHighlightedText] = useState('');
+  const [currentWord, setCurrentWord] = useState(0);
+  const synth = window.speechSynthesis;
 
   useEffect(() => {
-    const fetchVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
+    const loadVoices = () => {
+      const availableVoices = synth.getVoices();
       setVoices(availableVoices);
-      if (availableVoices.length > 0) {
-        setSelectedVoice(availableVoices[0].name);
-      }
+      const defaultVoice = availableVoices.find(v => 
+        v.name.includes('David') || 
+        (v.lang.includes('en') && v.default)
+      ) || availableVoices[0];
+      
+      if (defaultVoice) setVoice(defaultVoice.name);
     };
 
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = fetchVoices;
+    if (synth.getVoices().length > 0) {
+      loadVoices();
     }
-    fetchVoices();
+
+    synth.onvoiceschanged = loadVoices;
+
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setIsDarkMode(prefersDark);
+    document.body.className = prefersDark ? 'dark-mode' : 'light-mode';
+
+    return () => {
+      synth.onvoiceschanged = null;
+      if (synth.speaking) synth.cancel();
+    };
   }, []);
 
-  useEffect(() => {
-    document.body.className = isDarkMode ? "dark-mode" : "light-mode";
-  }, [isDarkMode]);
-
-  // Get the word of a string given the string and index
-  const getWordAt = (str, pos) => {
-    str = String(str);
-    pos = Number(pos) >>> 0;
-
-    let left = str.slice(0, pos + 1).search(/\S+$/),
-      right = str.slice(pos).search(/\s/);
-
-    if (right < 0) {
-      return str.slice(left);
-    }
-    return str.slice(left, right + pos);
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    document.body.className = !isDarkMode ? 'dark-mode' : 'light-mode';
   };
 
-  // Get the position of the beginning of the word
-  const getWordStart = (str, pos) => {
-    str = String(str);
-    pos = Number(pos) >>> 0;
-    let start = str.slice(0, pos + 1).search(/\S+$/);
-    return start;
+  // Handle text highlighting during speech
+  const handleTextHighlighting = (utterance, words) => {
+    setCurrentWord(0);
+    
+    utterance.onboundary = (event) => {
+      if (event.name === 'word') {
+        setCurrentWord((prevWord) => {
+          const nextWord = prevWord + 1;
+          return nextWord < words.length ? nextWord : prevWord;
+        });
+      }
+    };
+    
+    utterance.onend = () => {
+      setIsPlaying(false);
+      setHighlightedText('');
+      setCurrentWord(0);
+    };
   };
 
-  const wordHighlightAndAutoScroll = (event,text) => {
-    let textarea = document.getElementById("textarea");
-    let value = text;
-    let index = event.charIndex;
-    console.log(index);
-    let word = getWordAt(value, index);
-    console.log(word);
-    let anchorPosition = (textarea.value.length-value.length) + getWordStart(value, index);
-    let activePosition = anchorPosition + word.length;
-
-    textarea.focus();
-
-    const fullText = textarea.value;
-    textarea.value = fullText.substring(0, activePosition+250);
-    textarea.scrollTop = textarea.scrollHeight;
-    textarea.value = fullText;
-
-    if (textarea.setSelectionRange) {
-      textarea.setSelectionRange(anchorPosition, activePosition);
-    } else {
-      let range = textarea.createTextRange();
-      range.collapse(true);
-      range.moveEnd("character", activePosition);
-      range.moveStart("character", anchorPosition);
-      range.select();
-    }
-  };
-
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
-    setIsDarkMode(newMode);
-    localStorage.setItem("darkMode", newMode);
-  };
-
-  const handleTextChange = (e) => setText(e.target.value);
-  const handleVoiceChange = (e) => {
-    setSelectedVoice(e.target.value);
-    if (isSpeaking) restartSpeech(lastCharIndex);
-  };
-
-  const handleRateChange = async (e) => {
-    const newRate = parseFloat(e.target.value);
-    setRate(newRate);
-    if (isSpeaking) {
-      restartSpeech(lastCharIndex, newRate);
-    }
-  };
-
-  const toggleSpeaking = () => {
-    if (!text) {
-      alert("Please enter text to speak.");
+  const speak = () => {
+    if (text.trim() === '') return;
+    
+    if (synth.speaking) {
+      synth.cancel();
+      setIsPlaying(false);
       return;
     }
 
-    if (isSpeaking) {
-      if (isPaused) {
-        window.speechSynthesis.resume();
-        setIsPaused(false);
-      } else {
-        window.speechSynthesis.pause();
-        setIsPaused(true);
-      }
-    } else {
-      startSpeech(lastCharIndex, rate);
-    }
-  };
-
-  const startSpeech = (startIndex, speechRate) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.substring(startIndex));
-    const voice = voices.find((v) => v.name === selectedVoice);
-    if (voice) utterance.voice = voice;
-    utterance.rate = speechRate;
-
-    utterance.onboundary = async (event) => {
-      await setLastCharIndex(startIndex + event.charIndex);
-      await wordHighlightAndAutoScroll(event,utterance.text);
-    };
-
-    utterance.onpause = (event) => {
-      setLastCharIndex(event.charIndex);
-      setIsPaused(true);
-    };
-
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setLastCharIndex(0);
-    };
-
-    speechRef.current = utterance;
-    setIsSpeaking(true);
-    setIsPaused(false);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const restartSpeech = (startIndex, speechRate = rate) => {
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      startSpeech(startIndex, speechRate);
-    }
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    const selectedVoice = voices.find(v => v.name === voice);
+    if (selectedVoice) utterance.voice = selectedVoice;
+    
+    utterance.rate = rate;
+    
+    const words = text.split(/\s+/);
+    setHighlightedText(text);
+    handleTextHighlighting(utterance, words);
+    
+    setIsPlaying(true);
+    synth.speak(utterance);
   };
 
   return (
-    <div className={`app ${isDarkMode ? "dark-mode" : "light-mode"}`}>
-      <button className="toggle-button" onClick={toggleDarkMode}>
-        {isDarkMode ? "🌙" : "☀️"}
-      </button>
-
+    <>
       <h3 className="page-title">Text Speaking Assistant</h3>
-
+      
+      <button 
+        className="toggle-button" 
+        onClick={toggleTheme}
+      >
+        {isDarkMode ? '☀️' : '🌙'}
+      </button>
+      
       <div className="container">
-        <textarea
-          id="textarea"
-          value={text}
-          onChange={handleTextChange}
-          placeholder="Enter text here"
-          rows="4"
-        />
-
-        <div className="control-container d-flex justify-content-around align-items-center mt-3">
-          <div className="voice-select">
-            <label>Voice:</label>
-            <select
-              value={selectedVoice}
-              onChange={handleVoiceChange}
-              className="form-select"
+        <div>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Enter text here..."
+          />
+          <div style={{ textAlign: 'right', fontSize: '0.8em', opacity: 0.7, marginTop: '4px' }}>
+            {text.length} characters
+          </div>
+        </div>
+        
+        <div className="control-container">
+          <div>
+            <div className="control-label">
+              <span>Voice:</span>
+            </div>
+            <select 
+              className="voice-select"
+              value={voice} 
+              onChange={(e) => setVoice(e.target.value)}
             >
-              {voices.map((voice, index) => (
-                <option key={index} value={voice.name}>
+              {voices.map((voice) => (
+                <option key={voice.name} value={voice.name}>
                   {voice.name} ({voice.lang})
                 </option>
               ))}
             </select>
           </div>
-
-          <div className="speed-control">
-            <label>Speed:</label>
+          
+          <div>
+            <div className="control-label">
+              <span>Speed:</span>
+              <span>{rate.toFixed(1)}x</span>
+            </div>
             <input
               type="range"
               min="0.5"
               max="2"
               step="0.1"
               value={rate}
-              onChange={handleRateChange}
-              className="form-range"
+              onChange={(e) => setRate(parseFloat(e.target.value))}
+              className="speed-bar"
             />
-            <div className="speed-indicator">{rate}x</div>
           </div>
         </div>
-
-        <button
-          onClick={toggleSpeaking}
-          className="speak-button btn btn-primary"
+        
+        <button 
+          onClick={speak} 
+          className={`speak-button ${isPlaying ? 'playing' : ''}`}
         >
-          {isSpeaking ? (isPaused ? "Resume" : "Pause") : "Start Speaking"}
+          <i className={isPlaying ? 'fas fa-stop' : 'fas fa-play'}></i>
+          {isPlaying ? 'Stop Speaking' : 'Start Speaking'}
         </button>
       </div>
-    </div>
+    </>
   );
 }
 
 export default App;
-
