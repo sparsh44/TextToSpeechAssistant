@@ -8,7 +8,11 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState("");
-  const [rate, setRate] = useState(1);
+  const [rate, setRate] = useState(() => {
+    const savedRate = localStorage.getItem("ttsRate");
+    return savedRate ? parseFloat(savedRate) : 1;
+  });
+  
   const [lastCharIndex, setLastCharIndex] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
@@ -100,6 +104,7 @@ function App() {
   const handleRateChange = async (e) => {
     const newRate = parseFloat(e.target.value);
     setRate(newRate);
+    localStorage.setItem("ttsRate", newRate);
     if (isSpeaking) {
       restartSpeech(lastCharIndex, newRate);
     }
